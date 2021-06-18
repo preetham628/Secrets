@@ -36,7 +36,8 @@ const  userSchema = new mongoose.Schema({
   email: String,
   password: String,
   googleId: String,
-  facebookId:String
+  facebookId:String,
+  secret: String
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -83,18 +84,18 @@ passport.use(new FacebookStrategy({
 
 app.get('/',function(req,res){
   res.render("home");
-})
+});
 
 app.get("/auth/google",
   passport.authenticate("google",{scope:["profile"]})
-)
+);
 
 app.get("/auth/google/secrets",
   passport.authenticate("google",{failedRedirect:"/login"}),
   function(req,res){
     res.redirect("/secrets");
   }
-)
+);
 
 app.get('/auth/facebook',
   passport.authenticate('facebook'));
@@ -102,30 +103,42 @@ app.get('/auth/facebook',
 app.get('/auth/facebook/secrets',
   passport.authenticate('facebook', { failureRedirect: '/login' }),
   function(req, res) {
-    
+
     res.redirect('/secrets');
   });
 
 app.get('/login',function(req,res){
   res.render("login");
-})
+});
 
 app.get('/register',function(req,res){
   res.render("register");
-})
+});
 
 app.get("/secrets",function(req,res){
+  User.find({"secret":{$ne:null}},function(err,foundUsers){
+    if(err){
+      console.log(err);
+    }else{
+      if(foundUsers){
+        res.render("secrets",{usersWithSecrets:foundUsers});
+      }
+    }
+  })
+});
+
+app.get("/submit",function(req,res){
   if(req.isAuthenticated()){
-    res.render("secrets");
+    res.render("submit");
   }else{
     res.redirect("/login");
   }
-})
+});
 
 app.get("/logout",function(req,res){
   req.logout();
   res.redirect("/");
-})
+});
 
 app.post('/register',function(req,res){
 
@@ -158,6 +171,21 @@ app.post('/login',function(req,res){
     }
   });
 
+});
+
+app.post("/submit",function(req,res){
+  User.findById(req.user.id,function(err,foundUser){
+    if(err){
+      console.log(err);
+    }else{
+      if(foundUser){
+        foundUser.secret = req.body.secret;
+        foundUser.save(function(){
+          res.redirect("/secrets");
+        });
+      }
+    }
+  });
 });
 
 app.listen(3000,function(){
